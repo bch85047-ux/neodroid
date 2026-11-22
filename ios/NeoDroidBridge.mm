@@ -158,3 +158,44 @@ NSString *NeoDroidRunSelfTest(void) {
 
     return [NSString stringWithUTF8String:out.str().c_str()];
 }
+// ---------------------------------------------------------------------------
+// P1: 执行打包进 App 的 guest.elf（静态 AArch64 ELF，Linux ABI 子集）
+// ---------------------------------------------------------------------------
+#include "neodroid_guest.h"
+#include <fstream>
+
+NSString *NeoDroidRunGuestElf(void) {
+    NSString *path = [[NSBundle mainBundle] pathForResource:@"guest" ofType:@"elf"];
+    if (path == nil) {
+        return @"[FAIL] 未找到 guest.elf 资源";
+    }
+
+    std::ifstream in([path UTF8String], std::ios::binary);
+    if (!in) {
+        return @"[FAIL] 无法打开 guest.elf";
+    }
+    std::vector<std::byte> image((std::istreambuf_iterator<char>(in)),
+                                 std::istreambuf_iterator<char>());
+
+    NSMutableString *report = [NSMutableString string];
+    [report appendFormat:@"guest.elf: %lu bytes\n", (unsigned long)image.size()];
+
+    const auto result = neodroid::run_guest_elf(image);
+
+    if (!result.ok) {
+        [report appendFormat:@"[FAIL] %s\n", result.error.c_str()];
+        return report;
+    }
+
+    [report appendFormat:@"[OK] 退出码 %d\n", result.exit_code];
+    [report appendString:@"----- guest 输出 -----\n"];
+    if (result.output.empty()) {
+        [report appendString:@"(无输出)\n"];
+    } else {
+        [report appendFormat:@"%s", result.output.c_str()];
+    }
+
+    // 释放 guest 内存映射
+    // 注意：guest 运行后其映射仍保留在进程内，P1 阶段不做回收。
+    return report;
+}
