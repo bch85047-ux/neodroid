@@ -170,12 +170,19 @@ NSString *NeoDroidRunGuestElf(void) {
         return @"[FAIL] 未找到 guest.elf 资源";
     }
 
-    std::ifstream in([path UTF8String], std::ios::binary);
+    std::ifstream in([path UTF8String], std::ios::binary | std::ios::ate);
     if (!in) {
         return @"[FAIL] 无法打开 guest.elf";
     }
-    std::vector<std::byte> image((std::istreambuf_iterator<char>(in)),
-                                 std::istreambuf_iterator<char>());
+    const std::streamsize size = in.tellg();
+    if (size <= 0) {
+        return @"[FAIL] guest.elf 为空";
+    }
+    in.seekg(0, std::ios::beg);
+    std::vector<std::byte> image(static_cast<std::size_t>(size));
+    if (!in.read(reinterpret_cast<char *>(image.data()), size)) {
+        return @"[FAIL] guest.elf 读取失败";
+    }
 
     NSMutableString *report = [NSMutableString string];
     [report appendFormat:@"guest.elf: %lu bytes\n", (unsigned long)image.size()];
