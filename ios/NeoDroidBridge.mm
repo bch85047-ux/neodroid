@@ -7,6 +7,7 @@
 #include "neodroid_runtime.h"
 
 #include <sys/utsname.h>
+#include <unistd.h>
 #include <string>
 #include <sstream>
 #include <map>
