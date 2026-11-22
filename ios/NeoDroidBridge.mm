@@ -187,6 +187,11 @@ NSString *NeoDroidRunGuestElf(void) {
     NSMutableString *report = [NSMutableString string];
     [report appendFormat:@"guest.elf: %lu bytes\n", (unsigned long)image.size()];
 
+    NSString *tmpDir = NSTemporaryDirectory();
+    NSString *docsDir = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+    if (docsDir == nil) docsDir = tmpDir;
+    neodroid::set_sandbox_paths([tmpDir UTF8String], [docsDir UTF8String]);
+
     const auto result = neodroid::run_guest_elf(image);
 
     if (!result.ok) {
