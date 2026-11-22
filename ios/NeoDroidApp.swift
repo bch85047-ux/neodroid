@@ -4,8 +4,7 @@ import SwiftUI
 struct NeoDroidApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .preferredColorScheme(.dark)
+            ContentView().preferredColorScheme(.dark)
         }
     }
 }
@@ -20,7 +19,9 @@ struct SelfTestLine: Identifiable {
 struct ContentView: View {
     @State private var lines: [SelfTestLine] = []
     @State private var running = false
-    @State private var summary = "点击 Start 运行 P0 运行时自检"
+    @State private var summary = "P0 自检 / P1 guest 执行"
+    @State private var guestReport = ""
+    @State private var guestRunning = false
 
     var body: some View {
         NavigationStack {
@@ -28,22 +29,14 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     header
                     Divider()
+
                     Button(action: runSelfTest) {
-                        HStack {
-                            Image(systemName: running ? "hourglass" : "play.circle.fill")
-                            Text(running ? "Running..." : "Start Self-Test")
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.accentColor.opacity(0.2))
-                        .cornerRadius(12)
+                        actionLabel(icon: running ? "hourglass" : "play.circle.fill",
+                                    title: running ? "Running..." : "Run P0 Self-Test")
                     }
                     .disabled(running)
 
-                    Text(summary)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    Text(summary).font(.subheadline).foregroundStyle(.secondary)
 
                     ForEach(lines) { line in
                         HStack(alignment: .top, spacing: 10) {
@@ -59,6 +52,24 @@ struct ContentView: View {
                         .background(Color.white.opacity(0.05))
                         .cornerRadius(10)
                     }
+
+                    Divider()
+
+                    Button(action: runGuest) {
+                        actionLabel(icon: guestRunning ? "hourglass" : "cpu",
+                                    title: guestRunning ? "Executing guest..." : "Run Guest ELF (P1)")
+                    }
+                    .disabled(guestRunning)
+
+                    if !guestReport.isEmpty {
+                        Text(guestReport)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.black.opacity(0.4))
+                            .cornerRadius(10)
+                    }
                 }
                 .padding()
             }
@@ -69,16 +80,23 @@ struct ContentView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("NeoDroid P0")
-                .font(.title2).bold()
+            Text("NeoDroid P1").font(.title2).bold()
             Text("iOS ARM64 Android 运行时 · 原生执行 + syscall ABI 边界")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.secondary)
             Text(NeoDroidArchitectureInfo())
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .textSelection(.enabled)
+                .font(.caption2).foregroundStyle(.tertiary).textSelection(.enabled)
         }
+    }
+
+    private func actionLabel(icon: String, title: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+            Text(title).fontWeight(.semibold)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color.accentColor.opacity(0.2))
+        .cornerRadius(12)
     }
 
     private func runSelfTest() {
@@ -95,10 +113,21 @@ struct ContentView: View {
         }
     }
 
+    private func runGuest() {
+        guestRunning = true
+        guestReport = "执行中..."
+        DispatchQueue.global(qos: .userInitiated).async {
+            let report = NeoDroidRunGuestElf()
+            DispatchQueue.main.async {
+                guestReport = report
+                guestRunning = false
+            }
+        }
+    }
+
     private func parse(_ raw: String) -> ([SelfTestLine], String) {
         var output: [SelfTestLine] = []
-        var ok = 0
-        var total = 0
+        var ok = 0, total = 0
         for line in raw.split(separator: "\n") {
             let text = String(line)
             if text.hasPrefix("PASS|") {
@@ -115,9 +144,7 @@ struct ContentView: View {
                 }
             }
         }
-        let summary = total == 0
-            ? "自检未返回结果"
-            : "P0 运行时自检：\(ok)/\(total) 通过"
+        let summary = total == 0 ? "自检未返回结果" : "P0 运行时自检：\(ok)/\(total) 通过"
         return (output, summary)
     }
 }
