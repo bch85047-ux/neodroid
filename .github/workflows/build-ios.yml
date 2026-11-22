@@ -1,0 +1,74 @@
+name: Build NeoDroid P0 IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build-ipa:
+    name: Build unsigned IPA (macOS / Xcode)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          xcodegen --version 2>/dev/null || true
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (unsigned, iphoneos arm64)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project NeoDroid.xcodeproj \
+            -scheme NeoDroid \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build.log
+          ls -la build/Build/Products/Release-iphoneos/
+
+      - name: Package unsigned IPA
+        run: |
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/NeoDroid.app Payload/NeoDroid.app
+          # 校验 app 结构与架构
+          plutil -p Payload/NeoDroid.app/Info.plist | head -20
+          lipo -info Payload/NeoDroid.app/NeoDroid
+          zip -qry NeoDroid-P0-unsigned.ipa Payload
+          ls -lh NeoDroid-P0-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeoDroid-P0-ipa
+          path: NeoDroid-P0-unsigned.ipa
+          retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7
