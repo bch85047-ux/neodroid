@@ -14,6 +14,8 @@
 #include <memory>
 #include <vector>
 #include <cstring>
+#include <cstdint>
+#include <fstream>
 
 namespace {
 
