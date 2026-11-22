@@ -19,7 +19,7 @@ struct SelfTestLine: Identifiable {
 struct ContentView: View {
     @State private var lines: [SelfTestLine] = []
     @State private var running = false
-    @State private var summary = "P0 自检 / P1 guest 执行"
+    @State private var summary = "P0 自检 / P2 libc 程序执行"
     @State private var guestReport = ""
     @State private var guestRunning = false
 
@@ -57,7 +57,7 @@ struct ContentView: View {
 
                     Button(action: runGuest) {
                         actionLabel(icon: guestRunning ? "hourglass" : "cpu",
-                                    title: guestRunning ? "Executing guest..." : "Run Guest ELF (P1)")
+                                    title: guestRunning ? "Executing guest..." : "Run Guest ELF (P2)")
                     }
                     .disabled(guestRunning)
 
@@ -80,7 +80,7 @@ struct ContentView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("NeoDroid P1").font(.title2).bold()
+            Text("NeoDroid P2").font(.title2).bold()
             Text("iOS ARM64 Android 运行时 · 原生执行 + syscall ABI 边界")
                 .font(.caption).foregroundStyle(.secondary)
             Text(NeoDroidArchitectureInfo())
