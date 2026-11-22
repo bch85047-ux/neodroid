@@ -1,12 +1,21 @@
 // NeoDroid P1 syscall trampoline (AArch64)
 // x8 = Linux syscall number, x0..x5 = args, x16 = 返回地址（由每站点 thunk 填入）
-// 进入后保存 guest 所有可能被 C 调用破坏的寄存器，分发，再恢复并跳回。
+// 保存 guest 可能被 C 破坏的寄存器，分发，再恢复并跳回。
 
+#if defined(__APPLE__)
+#  define SYM(x) _##x
+    .text
+    .p2align 2
+    .globl SYM(neodroid_trampoline)
+SYM(neodroid_trampoline):
+#else
+#  define SYM(x) x
     .section .text
-    .global neodroid_trampoline
-    .type   neodroid_trampoline, %function
+    .globl SYM(neodroid_trampoline)
+    .type SYM(neodroid_trampoline), %function
+SYM(neodroid_trampoline):
+#endif
 
-neodroid_trampoline:
     sub     sp, sp, #160
     stp     x1,  x2,  [sp, #0]
     stp     x3,  x4,  [sp, #16]
@@ -19,7 +28,7 @@ neodroid_trampoline:
     stp     x18, x30, [sp, #128]
     str     x16,      [sp, #144]
 
-    // 重排成 C 调用约定: neodroid_host_syscall(nr, a0, a1, a2, a3, a4, a5)
+    // 重排为 C 调用约定: neodroid_host_syscall(nr, a0..a5)
     mov     x6, x5
     mov     x5, x4
     mov     x4, x3
@@ -27,9 +36,8 @@ neodroid_trampoline:
     mov     x2, x1
     mov     x1, x0
     mov     x0, x8
-    bl      neodroid_host_syscall
+    bl      SYM(neodroid_host_syscall)
 
-    // x0 保持为返回值（guest 的 syscall 返回寄存器）
     ldp     x1,  x2,  [sp, #0]
     ldp     x3,  x4,  [sp, #16]
     ldp     x5,  x6,  [sp, #32]
@@ -43,4 +51,6 @@ neodroid_trampoline:
     add     sp, sp, #160
     br      x16
 
-    .size neodroid_trampoline, . - neodroid_trampoline
+#if !defined(__APPLE__)
+    .size SYM(neodroid_trampoline), . - SYM(neodroid_trampoline)
+#endif
