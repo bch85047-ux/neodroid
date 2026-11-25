@@ -41,9 +41,10 @@ jobs:
           cd bionic_translation && meson setup build && sudo meson install -C build
           sudo ldconfig
 
-      - name: Clone art_standalone
+      - name: Clone art_standalone and AOSP VIXL
         run: |
           git clone --depth=1 https://gitlab.com/android_translation_layer/art_standalone.git
+          git clone --depth=1 https://android.googlesource.com/platform/external/vixl art_standalone/external/vixl
           cd art_standalone && git log -1 --oneline
 
       - name: Patch GNU-isms for strict C
