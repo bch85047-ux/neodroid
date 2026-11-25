@@ -20,10 +20,22 @@ jobs:
             libssl-dev libexpat1-dev zip liblz4-dev liblzma-dev libcap-dev \
             libegl-dev libwolfssl-dev build-essential git
 
+      - name: Build libunwind 1.8+ from source
+        run: |
+          curl -sSL -o libunwind.tar.gz https://github.com/libunwind/libunwind/releases/download/v1.8.1/libunwind-1.8.1.tar.gz
+          tar xf libunwind.tar.gz
+          cd libunwind-1.8.1
+          ./configure --prefix=/usr/local --enable-shared --disable-tests --disable-documentation
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+          pkg-config --modversion libunwind
+
       - name: Clone bionic_translation
         run: |
           git clone --depth=1 https://gitlab.com/android_translation_layer/bionic_translation.git
           cd bionic_translation && meson setup build && sudo meson install -C build
+          sudo ldconfig
 
       - name: Clone art_standalone
         run: |
