@@ -50,10 +50,11 @@ jobs:
       - name: Build VIXL shared library (manual, bypass scons)
         run: |
           cd art_standalone/external/vixl/src
-          SRC=$(ls *.cc aarch64/*.cc)
+          SRC=$(ls *.cc aarch64/*.cc aarch32/*.cc 2>/dev/null)
           echo "vixl sources: $(echo "$SRC" | wc -l)"
-          g++ -shared -fPIC -O2 -std=gnu++17 \
-            -DVIXL_INCLUDE_TARGET_AARCH64 -DVIXL_CODE_BUFFER_MMAP \
+          g++ -shared -fPIC -O1 -std=gnu++17 \
+            -DVIXL_INCLUDE_TARGET_AARCH64 -DVIXL_INCLUDE_TARGET_AARCH32 \
+            -DVIXL_CODE_BUFFER_MMAP \
             -I. -I.. $SRC -o libvixl.so
           sudo cp libvixl.so /usr/local/lib/libvixl.so
           sudo cp libvixl.so /usr/lib/libvixl.so
