@@ -30,6 +30,8 @@ jobs:
           wget -q https://github.com/wolfSSL/wolfssl/archive/refs/tags/v5.7.4-stable.tar.gz -O wolfssl.tar.gz
           tar xf wolfssl.tar.gz
           cd wolfssl-5.7.4-stable
+          ./autogen.sh > /dev/null 2>&1 || autoreconf -fi
+          test -x ./configure || { echo "FATAL: no configure"; exit 1; }
           ./configure --prefix=/usr/local --enable-shared --enable-opensslall --enable-jni \
             --enable-crl --enable-session-certs --enable-cert-gen --enable-cert-ext \
             --enable-base64encode --enable-aesgcm --enable-sha512 --enable-ecc \
