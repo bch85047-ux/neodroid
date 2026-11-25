@@ -1,0 +1,61 @@
+name: Build art_standalone (ARM64 Linux)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    steps:
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            default-jdk python-is-python3 meson pkg-config \
+            libbsd-dev libunwind-dev libelf-dev valgrind libicu-dev \
+            libssl-dev libexpat1-dev zip liblz4-dev liblzma-dev libcap-dev \
+            libegl-dev libwolfssl-dev build-essential git
+
+      - name: Clone bionic_translation
+        run: |
+          git clone --depth=1 https://gitlab.com/android_translation_layer/bionic_translation.git
+          cd bionic_translation && meson setup build && sudo meson install -C build
+
+      - name: Clone art_standalone
+        run: |
+          git clone --depth=1 https://gitlab.com/android_translation_layer/art_standalone.git
+          cd art_standalone && git log -1 --oneline
+
+      - name: Build
+        run: |
+          cd art_standalone
+          make -j$(nproc) 2>&1 | tee build.log
+
+      - name: Collect artifacts
+        if: always()
+        run: |
+          mkdir -p artifacts
+          cd art_standalone
+          cp -a out/host/linux-x86/lib64 artifacts/ 2>/dev/null || true
+          cp -a out/host/linux-x86/bin artifacts/ 2>/dev/null || true
+          cp -a out/host/linux-x86/gen artifacts/ 2>/dev/null || true
+          du -sh artifacts 2>/dev/null || true
+          ls artifacts/lib64 2>/dev/null | head -20 || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: art-standalone-arm64
+          path: art_standalone/artifacts
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-log
+          path: art_standalone/build.log
+          retention-days: 7
