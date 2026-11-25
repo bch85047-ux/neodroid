@@ -42,6 +42,15 @@ jobs:
           git clone --depth=1 https://gitlab.com/android_translation_layer/art_standalone.git
           cd art_standalone && git log -1 --oneline
 
+      - name: Patch GNU-isms for strict C
+        run: |
+          cd art_standalone
+          F=system/core/liblog/fake_log_device.c
+          grep -q '#include <stdbool.h>' "$F" || sed -i '/#include <fcntl.h>/a #include <stdbool.h>' "$F"
+          perl -0pi -e 's/    if \(char \*liblog_color = getenv\("LIBLOG_COLOR"\)\) \{/    const char *liblog_color = getenv("LIBLOG_COLOR");\n    if (liblog_color != NULL) {/' "$F"
+          grep -n 'stdbool\|liblog_color' "$F" | head -5
+          git diff --stat || true
+
       - name: Build
         run: |
           set -o pipefail
