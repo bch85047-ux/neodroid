@@ -18,7 +18,11 @@ jobs:
             default-jdk python-is-python3 meson pkg-config \
             libbsd-dev libunwind-dev libelf-dev valgrind libicu-dev \
             libssl-dev libexpat1-dev zip liblz4-dev liblzma-dev libcap-dev \
-            libegl-dev libwolfssl-dev build-essential git
+            libegl-dev libwolfssl-dev build-essential git \
+            libpng-dev libjpeg-dev libwebp-dev zlib1g-dev libzip-dev \
+            libtinyxml2-dev libprotobuf-dev protobuf-compiler \
+            libdwarf-dev libdw-dev libsigsegv-dev libtool autoconf automake \
+            gettext bison flex gperf python3-pip
 
       - name: Build libunwind 1.8+ from source
         run: |
