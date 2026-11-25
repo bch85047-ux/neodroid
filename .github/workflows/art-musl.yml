@@ -60,12 +60,12 @@ jobs:
           make -j$(nproc) 2>&1 | tee /art/build.log || true
 
           echo "=== collect ==="
-          mkdir -p /out
-          cp -a /art/out/host/linux-x86/*.so /out/ 2>/dev/null || true
-          cp -a /art/out/host/linux-x86/bin /out/ 2>/dev/null || true
-          cp /art/build.log /out/ 2>/dev/null || true
-          du -sh /out || true
-          ls -la /out | head -30 || true
+          mkdir -p /w/out
+          cp -a /art/out/host/linux-x86/*.so /w/out/ 2>/dev/null || true
+          cp -a /art/out/host/linux-x86/bin /w/out/ 2>/dev/null || true
+          cp /art/build.log /w/out/ 2>/dev/null || true
+          du -sh /w/out || true
+          ls -la /w/out | head -30 || true
           EOS
           chmod +x "$PWD/build.sh"
           docker run --rm -v "$PWD:/w" -w /w alpine:3.21 /w/build.sh
