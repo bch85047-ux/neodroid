@@ -47,6 +47,19 @@ jobs:
           git clone --depth=1 https://android.googlesource.com/platform/external/vixl art_standalone/external/vixl
           cd art_standalone && git log -1 --oneline
 
+      - name: Build VIXL shared library (manual, bypass scons)
+        run: |
+          cd art_standalone/external/vixl/src
+          SRC=$(ls *.cc aarch64/*.cc)
+          echo "vixl sources: $(echo "$SRC" | wc -l)"
+          g++ -shared -fPIC -O2 -std=gnu++17 \
+            -DVIXL_INCLUDE_TARGET_AARCH64 -DVIXL_CODE_BUFFER_MMAP \
+            -I. -I.. $SRC -o libvixl.so
+          sudo cp libvixl.so /usr/local/lib/libvixl.so
+          sudo cp libvixl.so /usr/lib/libvixl.so
+          sudo ldconfig
+          ls -la /usr/local/lib/libvixl.so
+
       - name: Patch GNU-isms for strict C
         run: |
           cd art_standalone
