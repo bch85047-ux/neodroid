@@ -21,9 +21,23 @@ jobs:
           apk add --no-cache build-base git python3 py3-setuptools py3-pip \
             openjdk17-jdk zip unzip bash perl linux-headers pkgconf meson \
             libbsd-dev libunwind-dev elfutils-dev icu-dev openssl-dev \
-            expat-dev lz4-dev xz-dev libcap-dev wolfssl-dev \
+            expat-dev lz4-dev xz-dev libcap-dev \
             libpng-dev libjpeg-turbo-dev libwebp-dev zlib-dev libzip-dev \
-            tinyxml2-dev protobuf-dev pcre2
+            tinyxml2-dev protobuf-dev pcre2 autoconf automake libtool wget
+
+          echo "=== wolfssl from source (OPENSSL_EXTRA, no COEXIST) ==="
+          cd /tmp
+          wget -q https://github.com/wolfSSL/wolfssl/archive/refs/tags/v5.7.4-stable.tar.gz -O wolfssl.tar.gz
+          tar xf wolfssl.tar.gz
+          cd wolfssl-5.7.4-stable
+          ./configure --prefix=/usr/local --enable-shared --enable-opensslall --enable-jni \
+            --enable-crl --enable-session-certs --enable-cert-gen --enable-cert-ext \
+            --enable-base64encode --enable-aesgcm --enable-sha512 --enable-ecc \
+            --disable-examples --disable-crypttests 2>&1 | tail -5
+          make -j$(nproc) > /dev/null 2>&1
+          make install
+          ls -la /usr/local/lib/libwolfssl.so* 2>/dev/null | head -3
+          grep -c 'OPENSSL_COEXIST' /usr/local/include/wolfssl/wolfcrypt/settings.h || echo "no COEXIST (good)"
 
           echo "=== VIXL ==="
           git clone --depth=1 https://android.googlesource.com/platform/external/vixl /vixl
@@ -47,7 +61,6 @@ jobs:
           F=system/core/liblog/fake_log_device.c
           grep -q 'stdbool.h' "$F" || sed -i '/#include <fcntl.h>/a #include <stdbool.h>' "$F"
           perl -0pi -e 's/    if \(char \*liblog_color = getenv\("LIBLOG_COLOR"\)\) \{/    const char *liblog_color = getenv("LIBLOG_COLOR");\n    if (liblog_color != NULL) {/' "$F"
-          sed -i 's/-DOPENSSL_EXTRA//g' external/wolfssljni/Android.mk
           git ls-files -s | awk '$1==120000 {print $4}' | while read f; do
             if [ -f "$f" ] && [ ! -L "$f" ]; then
               tgt=$(cat "$f"); d=$(dirname "$f"); real="$d/$tgt"
