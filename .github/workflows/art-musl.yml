@@ -9,45 +9,41 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 240
-    container: alpine:3.21
+    timeout-minutes: 300
     steps:
-      - name: Install deps
+      - name: Build inside Alpine container
         run: |
+          mkdir -p "$PWD/out"
+          cat > "$PWD/build.sh" <<'EOS'
+          #!/bin/sh
+          set -eux
           apk update
-          apk add --no-cache build-base git python3 py3-pip py3-setuptools \
-            openjdk17-jdk zip unzip bash perl linux-headers \
+          apk add --no-cache build-base git python3 py3-setuptools py3-pip \
+            openjdk17-jdk zip unzip bash perl linux-headers pkgconf meson \
             libbsd-dev libunwind-dev elfutils-dev icu-dev openssl-dev \
             expat-dev lz4-dev xz-dev libcap-dev wolfssl-dev \
             libpng-dev libjpeg-turbo-dev libwebp-dev zlib-dev libzip-dev \
-            tinyxml2-dev protobuf-dev meson pkgconf
+            tinyxml2-dev protobuf-dev pcre2
 
-      - name: Build VIXL
-        run: |
-          git clone --depth=1 https://android.googlesource.com/platform/external/vixl /tmp/vixl
-          cd /tmp/vixl/src
+          echo "=== VIXL ==="
+          git clone --depth=1 https://android.googlesource.com/platform/external/vixl /vixl
+          cd /vixl/src
           SRC=$(ls *.cc aarch64/*.cc aarch32/*.cc 2>/dev/null)
           echo "vixl srcs: $(echo "$SRC" | wc -l)"
           g++ -shared -fPIC -O1 -std=gnu++17 \
             -DVIXL_INCLUDE_TARGET_AARCH64 -DVIXL_INCLUDE_TARGET_AARCH32 \
             -DVIXL_CODE_BUFFER_MMAP -I. -I.. $SRC -o /usr/local/lib/libvixl.so
-          echo /usr/local/lib > /etc/ld-musl-aarch64.path
-          ldconfig 2>/dev/null || true
+          ln -sf /usr/local/lib/libvixl.so /usr/lib/libvixl.so
 
-      - name: Build bionic_translation
-        run: |
-          git clone --depth=1 https://gitlab.com/android_translation_layer/bionic_translation.git /tmp/bt
-          cd /tmp/bt && meson setup build --prefix=/usr/local && meson install -C build
-          ldconfig 2>/dev/null || true
+          echo "=== bionic_translation ==="
+          git clone --depth=1 https://gitlab.com/android_translation_layer/bionic_translation.git /bt
+          cd /bt && meson setup build --prefix=/usr/local && meson install -C build
+          ldconfig /usr/local/lib 2>/dev/null || true
 
-      - name: Clone art_standalone
-        run: |
-          git clone --depth=1 https://gitlab.com/android_translation_layer/art_standalone.git /tmp/art
-          git clone --depth=1 https://android.googlesource.com/platform/external/vixl /tmp/art/external/vixl
-
-      - name: Patch GNU-isms
-        run: |
-          cd /tmp/art
+          echo "=== art_standalone ==="
+          git clone --depth=1 https://gitlab.com/android_translation_layer/art_standalone.git /art
+          git clone --depth=1 https://android.googlesource.com/platform/external/vixl /art/external/vixl
+          cd /art
           F=system/core/liblog/fake_log_device.c
           grep -q 'stdbool.h' "$F" || sed -i '/#include <fcntl.h>/a #include <stdbool.h>' "$F"
           perl -0pi -e 's/    if \(char \*liblog_color = getenv\("LIBLOG_COLOR"\)\) \{/    const char *liblog_color = getenv("LIBLOG_COLOR");\n    if (liblog_color != NULL) {/' "$F"
@@ -59,25 +55,27 @@ jobs:
             fi
           done
 
-      - name: Build ART
-        run: |
-          set -o pipefail
-          cd /tmp/art
-          make -j$(nproc) 2>&1 | tee build.log
+          echo "=== make ==="
+          set -o pipefail || true
+          make -j$(nproc) 2>&1 | tee /art/build.log || true
 
-      - name: Collect
-        if: always()
-        run: |
-          mkdir -p /tmp/out
-          cp -a /tmp/art/out/host/linux-x86/*.so /tmp/out/ 2>/dev/null || true
-          cp -a /tmp/art/out/host/linux-x86/bin /tmp/out/ 2>/dev/null || true
-          cp -a /tmp/art/out/host/linux-x86/gen /tmp/out/ 2>/dev/null || true
-          cp /tmp/art/build.log /tmp/out/ 2>/dev/null || true
-          du -sh /tmp/out; ls /tmp/out | head -20
+          echo "=== collect ==="
+          mkdir -p /out
+          cp -a /art/out/host/linux-x86/*.so /out/ 2>/dev/null || true
+          cp -a /art/out/host/linux-x86/bin /out/ 2>/dev/null || true
+          cp /art/build.log /out/ 2>/dev/null || true
+          du -sh /out || true
+          ls -la /out | head -30 || true
+          EOS
+          chmod +x "$PWD/build.sh"
+          docker run --rm -v "$PWD:/w" -w /w alpine:3.21 /w/build.sh
+          echo "=== host out ==="
+          ls -la "$PWD/out" | head -30
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: art-musl-arm64
-          path: /tmp/out
+          path: out
           retention-days: 14
+          if-no-files-found: warn
