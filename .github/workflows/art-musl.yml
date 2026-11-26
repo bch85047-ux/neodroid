@@ -24,7 +24,7 @@ jobs:
             expat-dev lz4-dev xz-dev libcap-dev \
             libpng-dev libjpeg-turbo-dev libwebp-dev zlib-dev libzip-dev \
             tinyxml2-dev protobuf-dev pcre2 autoconf automake libtool wget \
-            mesa-dev libgl-dev g++
+            mesa-dev
 
           echo "=== wolfssl from source (OPENSSL_EXTRA, no COEXIST) ==="
           cd /tmp
