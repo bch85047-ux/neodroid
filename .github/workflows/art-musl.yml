@@ -62,11 +62,15 @@ jobs:
           meson setup build --prefix=/usr/local
           meson compile -C build
           meson install -C build
-          echo "--- collect all bionic_translation libs ---"
-          find /bt -name '*.so*' -type f | head -40
-          find /bt -name '*.so*' -type f -exec cp -P {} /usr/local/lib/ \; 2>/dev/null || true
-          find /bt -name '*.so*' -type l -exec cp -P {} /usr/local/lib/ \; 2>/dev/null || true
-          ls -la /usr/local/lib/ | grep -E 'dl_bio|libdl' | head
+          echo "--- collect bionic_translation runtime libs (whitelist) ---"
+          # bionic_translation 自带 bionic 版 zlib/pcre2，绝不能污染系统库
+          for pat in libdl_bio libc_bio libpthread_bio libm_bio; do
+            find /bt -name "$pat.so*" -exec cp -P {} /usr/local/lib/ \; 2>/dev/null || true
+          done
+          ls -la /usr/local/lib/ | head -20
+          echo "--- verify system libs intact ---"
+          ls -la /usr/lib/libpcre2-8.so.0* /usr/lib/libz.so.1* | head -4
+          git --version && echo GIT_OK
           echo /usr/local/lib >> /etc/ld-musl-aarch64.path
           cat /etc/ld-musl-aarch64.path
 
