@@ -52,8 +52,17 @@ jobs:
 
           echo "=== bionic_translation ==="
           git clone --depth=1 https://gitlab.com/android_translation_layer/bionic_translation.git /bt
-          cd /bt && meson setup build --prefix=/usr/local && meson install -C build
-          ldconfig /usr/local/lib 2>/dev/null || true
+          cd /bt
+          meson setup build --prefix=/usr/local
+          meson compile -C build
+          meson install -C build
+          echo "--- collect all bionic_translation libs ---"
+          find /bt -name '*.so*' -type f | head -40
+          find /bt -name '*.so*' -type f -exec cp -P {} /usr/local/lib/ \; 2>/dev/null || true
+          find /bt -name '*.so*' -type l -exec cp -P {} /usr/local/lib/ \; 2>/dev/null || true
+          ls -la /usr/local/lib/ | grep -E 'dl_bio|libdl' | head
+          echo /usr/local/lib >> /etc/ld-musl-aarch64.path
+          cat /etc/ld-musl-aarch64.path
 
           echo "=== art_standalone ==="
           git clone --depth=1 https://gitlab.com/android_translation_layer/art_standalone.git /art
