@@ -33,13 +33,18 @@ jobs:
           cd wolfssl-5.7.4-stable
           ./autogen.sh > /dev/null 2>&1 || autoreconf -fi
           test -x ./configure || { echo "FATAL: no configure"; exit 1; }
-          ./configure --prefix=/usr/local --enable-shared --enable-opensslall \
+          ./configure --prefix=/opt/wolfssl --enable-shared --enable-opensslall \
             --enable-jni --enable-crl --enable-base64encode --enable-aesgcm \
             --enable-sha512 --enable-ecc --disable-examples --disable-crypttests 2>&1 | tail -5
           make -j$(nproc) > /dev/null 2>&1
           make install
-          ls -la /usr/local/lib/libwolfssl.so* 2>/dev/null | head -3
-          grep -c 'OPENSSL_COEXIST' /usr/local/include/wolfssl/wolfcrypt/settings.h || echo "no COEXIST (good)"
+          # 只把 wolfssl 自己的头文件/库拷进系统前缀，避免覆盖其它包的文件
+          mkdir -p /usr/local/include /usr/local/lib
+          cp -a /opt/wolfssl/include/wolfssl /usr/local/include/
+          cp -a /opt/wolfssl/lib/libwolfssl.so* /usr/local/lib/
+          ls -la /usr/local/lib/libwolfssl.so* | head -3
+          echo "--- verify system libs intact ---"
+          ls /usr/lib/libpcre2-8.so.0 /usr/lib/libz.so.1 && git --version
 
           echo "=== VIXL ==="
           git clone --depth=1 https://android.googlesource.com/platform/external/vixl /vixl
